@@ -104,6 +104,16 @@ void SimpleEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
     
     leftChain.prepare(spec);
     rightChain.prepare(spec);
+    
+    auto chainSettings = getChainSettings(apvts);
+    
+    auto peakConefficients =
+    juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+        sampleRate, chainSettings.peakFreq, chainSettings.peakQuality,
+        juce::Decibels::decibelsToGain(chainSettings.peakGainInDecibels));
+    
+    *leftChain.get<ChainPossitons::Peak>().coefficients  = *peakConefficients;
+    *rightChain.get<ChainPossitons::Peak>().coefficients = *peakConefficients;
 }
 
 void SimpleEQAudioProcessor::releaseResources()
@@ -153,6 +163,16 @@ void SimpleEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
+    auto chainSettings = getChainSettings(apvts);
+    
+    auto peakConefficients =
+    juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+        getSampleRate(), chainSettings.peakFreq, chainSettings.peakQuality,
+        juce::Decibels::decibelsToGain(chainSettings.peakGainInDecibels));
+    
+    *leftChain.get<ChainPossitons::Peak>().coefficients  = *peakConefficients;
+    *rightChain.get<ChainPossitons::Peak>().coefficients = *peakConefficients;
+    
     juce::dsp::AudioBlock<float> block(buffer);
     auto leftBlock  = block.getSingleChannelBlock(0);
     auto rightBlock = block.getSingleChannelBlock(1);
@@ -195,6 +215,22 @@ void SimpleEQAudioProcessor::setStateInformation (const void* data, int sizeInBy
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new SimpleEQAudioProcessor();
+}
+
+
+ChainSettings getChainSettings(juce::AudioProcessorValueTreeState & apts)
+{
+    ChainSettings settings;
+    
+    settings.highCutFreq        = apts.getRawParameterValue(common_decl::HIGH_CUT_FREQUENCY)->load();
+    settings.hightCutSlope      = apts.getRawParameterValue(common_decl::HIGH_CUT_SLOPE)->load();
+    settings.lowCutFreq         = apts.getRawParameterValue(common_decl::LOW_CUT_FREQUENCY)->load();
+    settings.lowCutSlope        = apts.getRawParameterValue(common_decl::LOW_CUT_SLOPE)->load();
+    settings.peakFreq           = apts.getRawParameterValue(common_decl::PEAK_FREQUENCY)->load();
+    settings.peakGainInDecibels = apts.getRawParameterValue(common_decl::PEAK_GAIN)->load();
+    settings.peakQuality        = apts.getRawParameterValue(common_decl::PEAK_QUALITY)->load();
+    
+    return settings;
 }
 
 
